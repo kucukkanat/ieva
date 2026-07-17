@@ -25,7 +25,7 @@ export interface Branded<K extends Kind> {
 /**
  * A gateway-style model id (`"anthropic/claude-sonnet-5"`), an AI SDK LanguageModel
  * object, or a dynamic resolver. In the browser the id string is resolved by the
- * host-provided model registry (BYOK cloud or a local web-llm provider).
+ * host-provided model registry (BYOK cloud or a local transformers.js provider).
  */
 export type ModelReference = string | LanguageModelLike | DynamicModel;
 

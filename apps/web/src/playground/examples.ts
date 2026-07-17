@@ -129,9 +129,9 @@ const ASSISTANT: Example = {
       "You are a concise, friendly assistant. Answer clearly and briefly.",
     "/examples/assistant/agent/agent.ts": `import { defineAgent } from "ieva";
 
-// With the Local (WebGPU) provider selected in the playground, the loaded model
-// answers regardless of this reference. Under BYOK it would use this id.
-export default defineAgent({ model: "webllm/Llama-3.2-1B-Instruct-q4f32_1-MLC" });
+// With the Local (WebGPU) provider selected in the playground, the loaded
+// transformers.js model answers regardless of this reference.
+export default defineAgent({ model: "transformers/onnx-community/Qwen3-0.6B-ONNX" });
 `,
   },
 };

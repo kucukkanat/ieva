@@ -1,8 +1,9 @@
 /**
- * Minimal ambient declaration for the web-llm entry point we call. `@mlc-ai/web-llm` is
- * an optional peer dependency; this keeps `import("@mlc-ai/web-llm")` type-safe without
- * requiring consumers who never use local inference to install it.
+ * Minimal ambient declaration for the transformers.js entry point we call.
+ * `@huggingface/transformers` is an optional peer dependency; this keeps
+ * `import("@huggingface/transformers")` type-safe without requiring consumers who never
+ * use local inference to install it.
  */
-declare module "@mlc-ai/web-llm" {
-  export function CreateMLCEngine(model: string, config?: unknown): Promise<unknown>;
+declare module "@huggingface/transformers" {
+  export function pipeline(task: string, model: string, options?: unknown): Promise<unknown>;
 }

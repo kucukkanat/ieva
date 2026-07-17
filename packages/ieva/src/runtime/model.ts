@@ -1,6 +1,6 @@
 /**
  * The model contract the harness drives. Kept deliberately narrow so it can be backed
- * by an AI SDK LanguageModel (cloud BYOK) or a local web-llm provider, and stubbed in
+ * by an AI SDK LanguageModel (cloud BYOK) or a local transformers.js provider, and stubbed in
  * tests. Streaming is optional; when a model only implements `generate`, the harness
  * synthesizes a single cumulative append.
  */

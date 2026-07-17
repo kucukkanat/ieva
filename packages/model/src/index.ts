@@ -1,24 +1,24 @@
 import type { AgentModel, ModelRegistry } from "ieva/runtime";
 import { type AnthropicOptions, createAnthropicModel } from "./anthropic.ts";
-import { createWebLLMModel, type WebLLMOptions } from "./webllm.ts";
+import { createTransformersModel, type TransformersOptions } from "./transformers.ts";
 
 export { createAnthropicModel, type AnthropicOptions } from "./anthropic.ts";
-export { createWebLLMModel, type WebLLMOptions } from "./webllm.ts";
+export { createTransformersModel, type TransformersOptions } from "./transformers.ts";
 
 export interface RegistryOptions {
   /** BYOK keys per provider prefix, e.g. { anthropic: "sk-ant-..." }. Stored by the host. */
   readonly apiKeys?: Readonly<Record<string, string>>;
-  /** Options for a local web-llm model id (prefixed "webllm/"). */
-  readonly webllm?: Omit<WebLLMOptions, "model">;
+  /** Options for a local transformers.js model id (prefixed "transformers/"). */
+  readonly transformers?: Omit<TransformersOptions, "model">;
   /** Per-provider overrides (proxy fetch/baseUrl). */
   readonly anthropic?: Partial<Omit<AnthropicOptions, "apiKey" | "model">>;
 }
 
 /**
  * Resolve a gateway-style model id string to a runnable model. Recognizes
- * `anthropic/<model>` (BYOK cloud) and `webllm/<model>` (local WebGPU). Resolved models
- * are cached so repeated turns reuse the same engine — important for web-llm, whose
- * engine load is expensive.
+ * `anthropic/<model>` (BYOK cloud) and `transformers/<model>` (local WebGPU via
+ * transformers.js). Resolved models are cached so repeated turns reuse the same
+ * pipeline — important for local models, whose weight load is expensive.
  */
 export function createModelRegistry(options: RegistryOptions): ModelRegistry {
   const cache = new Map<string, Promise<AgentModel>>();
@@ -36,8 +36,11 @@ export function createModelRegistry(options: RegistryOptions): ModelRegistry {
 }
 
 async function build(reference: string, options: RegistryOptions): Promise<AgentModel> {
-  if (reference.startsWith("webllm/")) {
-    return createWebLLMModel({ model: reference.slice("webllm/".length), ...options.webllm });
+  if (reference.startsWith("transformers/")) {
+    return createTransformersModel({
+      model: reference.slice("transformers/".length),
+      ...options.transformers,
+    });
   }
   // Default provider is Anthropic; a bare or "anthropic/"-prefixed id routes here.
   const apiKey = options.apiKeys?.anthropic;

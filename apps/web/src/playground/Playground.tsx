@@ -380,9 +380,10 @@ function LocalModelPanel({
             </p>
           )}
           <p className="muted">
-            Weights download once from the model CDN and are cached for next time. First load
-            of a 1–3B model can take a while. Tool-calling on small local models is
-            experimental — the tool-free "Assistant" example is the most reliable here.
+            Runs on <strong>transformers.js</strong> (ONNX Runtime Web + WebGPU). Weights
+            download once and are cached for next time; first load of a tiny model can take a
+            while. Tool-calling on small local models is experimental — the tool-free
+            "Assistant" example is the most reliable here.
           </p>
         </>
       )}

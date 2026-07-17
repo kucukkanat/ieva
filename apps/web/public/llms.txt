@@ -22,6 +22,6 @@
 - [Ingesting a directory](/#/ingest): picker (live), drag-drop, zip, URL; the sync path index over async OPFS.
 - [Sandbox](/#/sandbox): just-bash pure-JS shell over OPFS; coreutils in JS; no python/sqlite/git.
 - [Durability](/#/durability): checkpoints, the redeploy-safety invariant, interrupted-step re-runs.
-- [Models](/#/models): anthropic/<model> BYOK cloud (direct-browser) and webllm/<model> local WebGPU.
+- [Models](/#/models): anthropic/<model> BYOK cloud (direct-browser) and transformers/<model> local WebGPU via transformers.js (Qwen3, Gemma 4, Gemma 3 tiny ONNX models).
 - [Project layout](/#/project-layout): the conventional directory and the rules the compiler enforces.
 - [Packages](/#/packages): ieva, @ieva/fs, @ieva/compiler, @ieva/store-idb, @ieva/model, @ieva/kit, @ieva/react.

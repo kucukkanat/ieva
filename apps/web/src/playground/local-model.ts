@@ -1,49 +1,47 @@
-import {
-  CreateWebWorkerMLCEngine,
-  deleteModelAllInfoInCache,
-  hasModelInCache,
-  prebuiltAppConfig,
-  type InitProgressReport,
-  type MLCEngineInterface,
-} from "@mlc-ai/web-llm";
 import type {
   AgentModel,
   ContentPart,
   GenerateRequest,
   GenerateResult,
   ModelMessage,
-  ToolCall,
 } from "ieva/runtime";
 
 export interface ModelChoice {
   readonly id: string;
   readonly label: string;
-  /** Approximate VRAM/download footprint in MB, from the prebuilt config. */
+  /** Approximate download footprint in MB. */
   readonly sizeMB: number;
+  /** Recommended dtype for WebGPU (Gemma 3 avoids fp16 due to an ORT overflow bug). */
+  readonly dtype: string;
+  readonly note?: string;
 }
 
-/** A curated shortlist of small, tool-capable models that load reasonably in a tab. */
-const CURATED = [
-  "Llama-3.2-1B-Instruct-q4f32_1-MLC",
-  "Llama-3.2-3B-Instruct-q4f32_1-MLC",
-  "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
-  "Qwen2.5-3B-Instruct-q4f16_1-MLC",
-  "Hermes-3-Llama-3.2-3B-q4f16_1-MLC",
-  "gemma-2-2b-it-q4f16_1-MLC",
+/**
+ * Curated tiny, browser-runnable models. Qwen3 is the current tiny Qwen family; Gemma 4
+ * E2B is Google's latest small model (larger/experimental — it's multimodal, so the
+ * text-generation path may be finicky); Gemma 3 270M is the truly-tiny option.
+ */
+const MODELS: readonly ModelChoice[] = [
+  { id: "onnx-community/Qwen3-0.6B-ONNX", label: "Qwen3 0.6B", dtype: "q4f16", sizeMB: 900 },
+  { id: "onnx-community/Qwen3-1.7B-ONNX", label: "Qwen3 1.7B", dtype: "q4f16", sizeMB: 1900 },
+  {
+    id: "onnx-community/gemma-3-270m-it-ONNX",
+    label: "Gemma 3 270M",
+    dtype: "q4",
+    sizeMB: 300,
+    note: "tiniest",
+  },
+  {
+    id: "onnx-community/gemma-4-E2B-it-ONNX",
+    label: "Gemma 4 E2B",
+    dtype: "q4f16",
+    sizeMB: 2500,
+    note: "experimental",
+  },
 ];
 
 export function listLocalModels(): ModelChoice[] {
-  const byId = new Map(prebuiltAppConfig.model_list.map((m) => [m.model_id, m]));
-  const picks = CURATED.filter((id) => byId.has(id));
-  const ids = picks.length > 0 ? picks : prebuiltAppConfig.model_list.slice(0, 8).map((m) => m.model_id);
-  return ids.map((id) => {
-    const entry = byId.get(id);
-    return {
-      id,
-      label: id.replace(/-MLC$/, ""),
-      sizeMB: entry?.vram_required_MB ?? 0,
-    };
-  });
+  return [...MODELS];
 }
 
 export interface ProgressState {
@@ -51,16 +49,30 @@ export interface ProgressState {
   readonly text: string;
 }
 
+interface ProgressReport {
+  status?: string;
+  file?: string;
+  progress?: number;
+  loaded?: number;
+  total?: number;
+}
+
+const CACHE_NAMES = ["transformers-cache"];
+
 /**
- * Manages a single locally-loaded WebGPU model: load (with progress), unload, cache
- * checks, and exposing the loaded engine as an ieva `AgentModel`. Uses a Web Worker
- * engine so weight loading and generation never block the UI. WebGPU needs no COOP/COEP
- * headers, so this works when served from GitHub Pages.
+ * Manages a single locally-loaded transformers.js model: load (with progress), unload,
+ * cache checks, and exposing the loaded pipeline as an ieva `AgentModel`. Runs in a Web
+ * Worker so weight loading and generation never block the UI. WebGPU needs no COOP/COEP
+ * headers, so this works served from GitHub Pages.
  */
 export class LocalModelManager {
-  private engine: MLCEngineInterface | undefined;
   private worker: Worker | undefined;
   private loadedId: string | undefined;
+  private nextId = 0;
+  private readonly pending = new Map<
+    number,
+    { resolve: (text: string) => void; reject: (err: Error) => void }
+  >();
 
   get currentModelId(): string | undefined {
     return this.loadedId;
@@ -70,120 +82,134 @@ export class LocalModelManager {
     return typeof navigator !== "undefined" && "gpu" in navigator;
   }
 
-  isCached(modelId: string): Promise<boolean> {
-    return hasModelInCache(modelId, prebuiltAppConfig).catch(() => false);
+  /** Best-effort cache check across the browser Cache API (transformers.js caches there). */
+  async isCached(modelId: string): Promise<boolean> {
+    if (typeof caches === "undefined") return false;
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name);
+      const reqs = await cache.keys();
+      if (reqs.some((r) => r.url.includes(modelId))) return true;
+    }
+    return false;
   }
 
   async deleteCache(modelId: string): Promise<void> {
-    await deleteModelAllInfoInCache(modelId, prebuiltAppConfig);
+    if (typeof caches === "undefined") return;
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name);
+      for (const req of await cache.keys()) {
+        if (req.url.includes(modelId)) await cache.delete(req);
+      }
+    }
   }
 
   async load(modelId: string, onProgress: (p: ProgressState) => void): Promise<void> {
     await this.unload();
-    this.worker = new Worker(new URL("./webllm-worker.ts", import.meta.url), { type: "module" });
-    this.engine = await CreateWebWorkerMLCEngine(this.worker, modelId, {
-      initProgressCallback: (report: InitProgressReport) =>
-        onProgress({ progress: report.progress, text: report.text }),
+    const choice = MODELS.find((m) => m.id === modelId);
+    const worker = new Worker(new URL("./transformers-worker.ts", import.meta.url), {
+      type: "module",
+    });
+    this.worker = worker;
+
+    await new Promise<void>((resolve, reject) => {
+      worker.onmessage = (event: MessageEvent) => {
+        const msg = event.data;
+        if (msg.type === "progress") {
+          onProgress(formatProgress(msg.report as ProgressReport));
+        } else if (msg.type === "ready") {
+          resolve();
+        } else if (msg.type === "error" && msg.id === undefined) {
+          reject(new Error(msg.error));
+        } else if (msg.type === "result" || msg.type === "token" || msg.type === "error") {
+          this.handleGeneration(msg);
+        }
+      };
+      worker.onerror = (e) => reject(new Error(e.message));
+      worker.postMessage({ type: "load", modelId, dtype: choice?.dtype ?? "q4" });
     });
     this.loadedId = modelId;
   }
 
   async unload(): Promise<void> {
-    if (this.engine) await this.engine.unload().catch(() => undefined);
-    this.worker?.terminate();
-    this.engine = undefined;
+    if (this.worker) {
+      this.worker.postMessage({ type: "unload" });
+      this.worker.terminate();
+    }
     this.worker = undefined;
     this.loadedId = undefined;
+    for (const p of this.pending.values()) p.reject(new Error("Model unloaded"));
+    this.pending.clear();
   }
 
-  /** The loaded engine as an ieva AgentModel. Throws if nothing is loaded. */
+  private handleGeneration(msg: { type: string; id: number; text?: string; error?: string }): void {
+    const entry = this.pending.get(msg.id);
+    if (!entry) return;
+    if (msg.type === "result") {
+      this.pending.delete(msg.id);
+      entry.resolve(msg.text ?? "");
+    } else if (msg.type === "error") {
+      this.pending.delete(msg.id);
+      entry.reject(new Error(msg.error));
+    }
+    // "token" events stream partial text; the AgentModel awaits the final "result".
+  }
+
+  private generate(messages: Array<{ role: string; content: string }>): Promise<string> {
+    const worker = this.worker;
+    if (!worker) return Promise.reject(new Error("No model loaded"));
+    const id = this.nextId++;
+    return new Promise<string>((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      worker.postMessage({ type: "generate", id, messages, maxTokens: 384 });
+    });
+  }
+
+  /** The loaded pipeline as an ieva AgentModel. Throws if nothing is loaded. */
   asAgentModel(): AgentModel {
-    const engine = this.engine;
     const id = this.loadedId;
-    if (!engine || !id) throw new Error("No local model is loaded. Load one first.");
+    if (!this.worker || !id) throw new Error("No local model is loaded. Load one first.");
+    const generate = (m: Array<{ role: string; content: string }>) => this.generate(m);
     return {
-      id: `webllm/${id}`,
+      id: `transformers/${id}`,
       async generate(request: GenerateRequest): Promise<GenerateResult> {
         const messages = [
           { role: "system", content: request.system },
-          ...request.messages.map(toOpenAiMessage),
+          ...request.messages.map(toChatMessage),
         ];
-        const response = await engine.chat.completions.create({
-          messages: messages as never,
-          ...(request.tools.length > 0
-            ? {
-                tool_choice: "auto",
-                tools: request.tools.map((t) => ({
-                  type: "function" as const,
-                  function: {
-                    name: t.name,
-                    description: t.description,
-                    parameters: t.inputSchema,
-                  },
-                })),
-              }
-            : {}),
-        });
-        return parseChoice(response);
+        // Small local models don't reliably emit structured tool calls; we generate chat
+        // text only (the tool-free "Assistant" example is the intended local demo).
+        const text = await generate(messages);
+        return { text: text.trim(), toolCalls: [], finishReason: "stop" };
       },
     };
   }
 }
 
-interface ChatResponse {
-  choices: Array<{
-    message: {
-      content: string | null;
-      tool_calls?: Array<{ id?: string; function: { name: string; arguments: string } }>;
-    };
-    finish_reason: string;
-  }>;
+function formatProgress(report: ProgressReport): ProgressState {
+  const pct = typeof report.progress === "number" ? report.progress : 0;
+  const file = report.file ? report.file.split("/").pop() : "";
+  const verb =
+    report.status === "done" || report.status === "ready"
+      ? "Loaded"
+      : report.status === "initiate"
+        ? "Preparing"
+        : "Downloading";
+  const label = file ? `${verb} ${file}` : verb;
+  return {
+    progress: Math.min(1, pct / 100),
+    text: pct ? `${label} — ${Math.round(pct)}%` : label,
+  };
 }
 
-function parseChoice(response: ChatResponse): GenerateResult {
-  const choice = response.choices[0];
-  const text = choice?.message.content ?? "";
-  const toolCalls: ToolCall[] = (choice?.message.tool_calls ?? []).map((c, i) => ({
-    callId: c.id ?? `local-${i}`,
-    name: c.function.name,
-    input: safeParse(c.function.arguments),
-  }));
-  const finishReason: GenerateResult["finishReason"] =
-    toolCalls.length > 0 || choice?.finish_reason === "tool_calls"
-      ? "tool-calls"
-      : choice?.finish_reason === "length"
-        ? "length"
-        : "stop";
-  return { text, toolCalls, finishReason };
-}
-
-function toOpenAiMessage(message: ModelMessage): { role: string; content: string; tool_call_id?: string } {
-  if (message.role === "tool") {
-    const part = asParts(message.content).find((p) => p.type === "tool-result");
-    return {
-      role: "tool",
-      content: part && part.type === "tool-result" ? stringify(part.output) : "",
-      ...(part && part.type === "tool-result" ? { tool_call_id: part.callId } : {}),
-    };
-  }
+function toChatMessage(message: ModelMessage): { role: string; content: string } {
   if (typeof message.content === "string") return { role: message.role, content: message.content };
   const text = message.content
     .filter((p): p is Extract<ContentPart, { type: "text" }> => p.type === "text")
     .map((p) => p.text)
     .join("");
-  return { role: message.role, content: text };
+  const role = message.role === "tool" ? "user" : message.role;
+  return { role, content: text };
 }
 
-function asParts(content: ModelMessage["content"]): ContentPart[] {
-  return typeof content === "string" ? [{ type: "text", text: content }] : content;
-}
-function stringify(value: unknown): string {
-  return typeof value === "string" ? value : JSON.stringify(value);
-}
-function safeParse(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return {};
-  }
-}
+// Cache-name hint kept for reference; the cache scan above is name-agnostic.
+export const TRANSFORMERS_CACHE_NAMES = CACHE_NAMES;

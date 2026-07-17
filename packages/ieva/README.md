@@ -23,7 +23,7 @@ import { defineState } from "ieva/context";
 import { defineAgent } from "ieva";
 
 export default defineAgent({
-  model: "anthropic/claude-sonnet-5", // or "webllm/Llama-3.1-8B-Instruct-q4f32_1-MLC"
+  model: "anthropic/claude-sonnet-5", // or "transformers/onnx-community/Qwen3-0.6B-ONNX"
   compaction: { thresholdPercent: 0.9 },
 });
 ```

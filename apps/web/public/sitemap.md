@@ -60,7 +60,7 @@ An LLM-oriented semantic index of the documentation.
 
 ### Models — /#/models
 - Type: Integration
-- Summary: anthropic/<model> BYOK direct-browser and webllm/<model> local WebGPU, behind a memoizing registry.
+- Summary: anthropic/<model> BYOK direct-browser and transformers/<model> local WebGPU via transformers.js (Qwen3, Gemma 4/3 tiny ONNX), behind a memoizing registry.
 
 ## Reference
 

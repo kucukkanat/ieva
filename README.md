@@ -102,7 +102,7 @@ function Chat({ client }) {
 | [`@ieva/fs`](packages/fs) | OPFS-backed VFS implementing just-bash's `IFileSystem`, the sync path index, and directory ingest (picker, drag-drop, zip, URL). |
 | [`@ieva/compiler`](packages/compiler) | In-browser compiler: discovery + esbuild-wasm module loading + brand validation → a runnable `LoadedAgent`. |
 | [`@ieva/store-idb`](packages/store-idb) | IndexedDB checkpoint store. Sessions survive tab reloads. |
-| [`@ieva/model`](packages/model) | Model providers — BYOK Anthropic (direct-browser) and local web-llm — behind a registry. |
+| [`@ieva/model`](packages/model) | Model providers — BYOK Anthropic (direct-browser) and local transformers.js (WebGPU) — behind a registry. |
 | [`@ieva/kit`](packages/kit) | `bootstrapAgent()` — discover → compile → client in one call. |
 | [`@ieva/react`](packages/react) | `useIevaAgent()` hook. |
 

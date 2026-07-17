@@ -160,7 +160,7 @@ export default defineAgent({
 
 | Field | Notes |
 |---|---|
-| \`model\` | A gateway-style id. \`anthropic/<model>\` (BYOK cloud) or \`webllm/<model>\` (local WebGPU). Required if \`agent.ts\` exists. |
+| \`model\` | A gateway-style id. \`anthropic/<model>\` (BYOK cloud) or \`transformers/<model>\` (local WebGPU via transformers.js). Required if \`agent.ts\` exists. |
 | \`compaction\` | \`{ thresholdPercent }\` or \`false\`. On by default at 0.9. |
 | \`limits\` | \`maxInputTokensPerSession\`, \`maxOutputTokensPerSession\`, \`maxSteps\`. |
 | \`description\` | Required on **subagents** only — the parent reads it to decide whether to delegate. |
@@ -454,27 +454,27 @@ import { createModelRegistry } from "@ieva/model";
 
 const registry = createModelRegistry({
   apiKeys: { anthropic: userProvidedKey },
-  webllm: { onProgress: (r) => console.log(r.text, r.progress) },
+  transformers: { dtype: "q4f16", onProgress: (r) => console.log(r) },
 });
 \`\`\`
 
 | Prefix | Provider |
 |---|---|
 | \`anthropic/<model>\` | BYOK cloud. Calls the Anthropic Messages API directly from the browser via \`anthropic-dangerous-direct-browser-access\`. Pass a custom \`fetch\`/\`baseUrl\` to route through your own proxy instead of shipping a key to the client. |
-| \`webllm/<model>\` | Local WebGPU inference via web-llm. The engine (and weights) load once and are cached. |
+| \`transformers/<model>\` | Local WebGPU inference via [transformers.js](https://huggingface.co/docs/transformers.js) (ONNX Runtime Web). E.g. \`transformers/onnx-community/Qwen3-0.6B-ONNX\`. Weights load once and are cached. |
 
-Resolved models are memoized, so repeated turns reuse the same engine — important for web-llm, whose weight load is expensive.
+Resolved models are memoized, so repeated turns reuse the same pipeline — important for local models, whose weight load is expensive.
 
-> **On local models:** web-llm's tool calling is still maturing. The adapter passes tools through the OpenAI-compatible surface and parses \`tool_calls\`; for a model that can't emit structured calls, fall back to a JSON-instructed prompt.
+> **On local models:** small models don't reliably emit structured tool calls, so the transformers.js adapter generates chat text only. For tool-heavy agents, use a cloud model.
 
 ## Local WebGPU, in practice
 
-The [playground](#/playground) has a **Local (WebGPU)** provider with full model management — pick a model (Llama 3.2 1B/3B, Qwen2.5, Hermes, Gemma), load it with a progress bar, see whether it's cached, and unload or delete the cache. Weights download once from the model CDN and are cached for next time; everything runs on your GPU and nothing leaves the tab.
+The [playground](#/playground) has a **Local (WebGPU)** provider running on **transformers.js**, with full model management — pick a tiny ONNX model (**Qwen3 0.6B / 1.7B**, **Gemma 4 E2B**, or **Gemma 3 270M**), load it with a progress bar, see whether it's cached, and unload or delete the cache. Everything runs on your GPU and nothing leaves the tab.
 
 Two things worth knowing:
 
-- **WebGPU needs no special headers.** Unlike WASM-multithreaded runtimes (which need COOP/COEP cross-origin isolation), web-llm's WebGPU path runs on a plain static host — which is why the playground works served from GitHub Pages.
-- **Tool-calling on small local models is experimental.** The tool-free "Assistant" example is the most reliable local demo; tool-heavy agents are better on a cloud model for now.`,
+- **WebGPU needs no special headers.** Unlike WASM-multithreaded runtimes (which need COOP/COEP cross-origin isolation), the transformers.js WebGPU path runs on a plain static host — which is why the playground works served from GitHub Pages.
+- **Model-specific dtypes.** Qwen3 and Gemma 4 run at \`q4f16\`; Gemma 3 uses \`q4\` to sidestep an fp16 overflow bug in ONNX Runtime's WebGPU backend. Tool-calling on small local models is experimental — the tool-free "Assistant" example is the most reliable local demo.`,
   },
 
   "project-layout": {
@@ -519,7 +519,7 @@ Discovery **never executes authored code** — the path determines the slot; bra
 | \`@ieva/fs\` | OPFS-backed VFS implementing just-bash's \`IFileSystem\`, the sync path index, and the ingest adapters. |
 | \`@ieva/compiler\` | In-browser compiler: discovery + esbuild-wasm loading + brand validation → a runnable \`LoadedAgent\`. |
 | \`@ieva/store-idb\` | IndexedDB checkpoint store. |
-| \`@ieva/model\` | Model providers — BYOK Anthropic and local web-llm — behind a registry. |
+| \`@ieva/model\` | Model providers — BYOK Anthropic and local transformers.js (WebGPU) — behind a registry. |
 | \`@ieva/kit\` | \`bootstrapAgent()\` — discover → compile → client in one call. |
 | \`@ieva/react\` | The \`useIevaAgent()\` hook. |
 
