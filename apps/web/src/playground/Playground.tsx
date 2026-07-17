@@ -382,8 +382,9 @@ function LocalModelPanel({
           <p className="muted">
             Runs on <strong>transformers.js</strong> (ONNX Runtime Web + WebGPU). Weights
             download once and are cached for next time; first load of a tiny model can take a
-            while. Tool-calling on small local models is experimental — the tool-free
-            "Assistant" example is the most reliable here.
+            while. Tool-calling works best on a capable model like <strong>Gemma 4 E2B</strong>;
+            the tiniest models (Gemma 3 270M, Qwen3 0.6B) tend to answer directly instead of
+            calling a tool.
           </p>
         </>
       )}

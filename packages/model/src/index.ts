@@ -1,9 +1,17 @@
 import type { AgentModel, ModelRegistry } from "ieva/runtime";
 import { type AnthropicOptions, createAnthropicModel } from "./anthropic.ts";
-import { createTransformersModel, type TransformersOptions } from "./transformers.ts";
+import { type TransformersOptions, createTransformersModel } from "./transformers.ts";
 
 export { createAnthropicModel, type AnthropicOptions } from "./anthropic.ts";
 export { createTransformersModel, type TransformersOptions } from "./transformers.ts";
+export {
+  buildToolSystemPrompt,
+  parseToolCalls,
+  toChatHistory,
+  toNativeTools,
+  type NativeTool,
+  type ParsedGeneration,
+} from "./tool-prompt.ts";
 
 export interface RegistryOptions {
   /** BYOK keys per provider prefix, e.g. { anthropic: "sk-ant-..." }. Stored by the host. */

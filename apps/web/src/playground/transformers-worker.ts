@@ -4,11 +4,14 @@
  * via the `new Worker(new URL(...), { type: "module" })` reference in local-model.ts.
  *
  * Protocol (main → worker):
- *   { type: "load", modelId, dtype }              → progress* then "ready" | "error"
- *   { type: "generate", id, messages, maxTokens } → "token"* then "result" | "error"
+ *   { type: "load", modelId, dtype }                     → progress* then "ready" | "error"
+ *   { type: "generate", id, messages, maxTokens, tools } → "token"* then "result" | "error"
  *   { type: "unload" }
+ *
+ * `tools` (OpenAI function shape) is forwarded to the chat template; models whose template
+ * declares `tool_use` render them in their trained tool-calling format.
  */
-import { pipeline, TextStreamer, type TextGenerationPipeline } from "@huggingface/transformers";
+import { type TextGenerationPipeline, TextStreamer, pipeline } from "@huggingface/transformers";
 
 let generator: TextGenerationPipeline | undefined;
 
@@ -33,6 +36,7 @@ self.onmessage = async (event: MessageEvent) => {
         max_new_tokens: msg.maxTokens ?? 256,
         do_sample: false,
         streamer,
+        ...(msg.tools && msg.tools.length > 0 ? { tools: msg.tools } : {}),
       })) as Array<{ generated_text: unknown }>;
       self.postMessage({ type: "result", id: msg.id, text: extractText(output) });
     } else if (msg.type === "unload") {

@@ -1,10 +1,23 @@
-import type {
-  AgentModel,
-  ContentPart,
-  GenerateRequest,
-  GenerateResult,
-  ModelMessage,
-} from "ieva/runtime";
+import {
+  type NativeTool,
+  buildToolSystemPrompt,
+  parseToolCalls,
+  toChatHistory,
+  toNativeTools,
+} from "@ieva/model/tool-prompt";
+import type { AgentModel, GenerateRequest, GenerateResult } from "ieva/runtime";
+
+/** Room for a short reasoning preamble plus the tool call or final answer. */
+const MAX_NEW_TOKENS = 512;
+
+/**
+ * Qwen3 is a reasoning model that, left alone, spends its whole token budget "thinking"
+ * through arithmetic by hand instead of calling the tool. Its `/no_think` directive turns
+ * that off, so it emits the tool call directly. Harmless to other models (they don't parse it).
+ */
+function withThinkingHint(system: string, modelId: string): string {
+  return /qwen3/i.test(modelId) ? `${system}\n\n/no_think` : system;
+}
 
 export interface ModelChoice {
   readonly id: string;
@@ -154,13 +167,16 @@ export class LocalModelManager {
     // "token" events stream partial text; the AgentModel awaits the final "result".
   }
 
-  private generate(messages: Array<{ role: string; content: string }>): Promise<string> {
+  private generate(
+    messages: Array<{ role: string; content: string }>,
+    tools: NativeTool[],
+  ): Promise<string> {
     const worker = this.worker;
     if (!worker) return Promise.reject(new Error("No model loaded"));
     const id = this.nextId++;
     return new Promise<string>((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      worker.postMessage({ type: "generate", id, messages, maxTokens: 384 });
+      worker.postMessage({ type: "generate", id, messages, maxTokens: MAX_NEW_TOKENS, tools });
     });
   }
 
@@ -168,18 +184,20 @@ export class LocalModelManager {
   asAgentModel(): AgentModel {
     const id = this.loadedId;
     if (!this.worker || !id) throw new Error("No local model is loaded. Load one first.");
-    const generate = (m: Array<{ role: string; content: string }>) => this.generate(m);
+    const generate = (m: Array<{ role: string; content: string }>, t: NativeTool[]) =>
+      this.generate(m, t);
     return {
       id: `transformers/${id}`,
       async generate(request: GenerateRequest): Promise<GenerateResult> {
-        const messages = [
-          { role: "system", content: request.system },
-          ...request.messages.map(toChatMessage),
-        ];
-        // Small local models don't reliably emit structured tool calls; we generate chat
-        // text only (the tool-free "Assistant" example is the intended local demo).
-        const text = await generate(messages);
-        return { text: text.trim(), toolCalls: [], finishReason: "stop" };
+        // Two-pronged tool calling: pass tools to the chat template natively (used by models
+        // whose template declares tool_use) AND describe them in the system prompt as a
+        // fallback. Either way the model's tool call is parsed back out of the raw text.
+        const system = withThinkingHint(buildToolSystemPrompt(request.system, request.tools), id);
+        const messages = toChatHistory(system, request.messages);
+        const raw = await generate(messages, toNativeTools(request.tools));
+        const knownTools = new Set(request.tools.map((t) => t.name));
+        const { text, toolCalls } = parseToolCalls(raw, knownTools);
+        return { text, toolCalls, finishReason: toolCalls.length > 0 ? "tool-calls" : "stop" };
       },
     };
   }
@@ -199,16 +217,6 @@ function formatProgress(report: ProgressReport): ProgressState {
     progress: Math.min(1, pct / 100),
     text: pct ? `${label} — ${Math.round(pct)}%` : label,
   };
-}
-
-function toChatMessage(message: ModelMessage): { role: string; content: string } {
-  if (typeof message.content === "string") return { role: message.role, content: message.content };
-  const text = message.content
-    .filter((p): p is Extract<ContentPart, { type: "text" }> => p.type === "text")
-    .map((p) => p.text)
-    .join("");
-  const role = message.role === "tool" ? "user" : message.role;
-  return { role, content: text };
 }
 
 // Cache-name hint kept for reference; the cache scan above is name-agnostic.

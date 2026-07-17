@@ -42,6 +42,6 @@ const local = await createTransformersModel({
 ## Caveats
 
 - Both adapters implement ieva's non-streaming `AgentModel.generate`; the harness synthesizes a single cumulative append.
-- Small local models don't reliably emit structured tool calls, so the transformers.js adapter generates chat text only. For tool-heavy agents, use a cloud model.
+- The transformers.js adapter does prompt-based tool calling (`./tool-prompt`): tools are described in the system prompt and passed to the chat template natively, and the model's reply is parsed back into `ToolCall`s — tolerating the near-JSON (`call:multiply{a:1,b:2}`, `multiply(a=1, b=2)`) that tiny models emit. Reliability scales with model size: a capable local model like Gemma 4 E2B calls tools well; the tiniest models often answer directly. For tool-heavy agents, prefer a cloud model.
 
 Apache-2.0.
