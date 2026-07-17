@@ -172,3 +172,22 @@ pre.code code {
   flex-direction: column;
   gap: var(--space-4);
 }
+
+/* Inline "Label: <control>" pairs in the control rows. */
+.controls {
+  row-gap: var(--space-2);
+  column-gap: var(--space-3);
+}
+.controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+.controls label select {
+  margin: 0;
+}
+.pill {
+  align-self: center;
+}
