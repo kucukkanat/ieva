@@ -9,48 +9,6 @@
         "typescript": "^5.7.0",
       },
     },
-    "apps/docs": {
-      "name": "@ieva/docs",
-      "version": "0.0.1",
-      "dependencies": {
-        "highlight.js": "^11.10.0",
-        "react": "^19.0.0",
-        "react-dom": "^19.0.0",
-        "react-markdown": "^9.0.1",
-        "remark-gfm": "^4.0.0",
-      },
-      "devDependencies": {
-        "@types/react": "^19.0.0",
-        "@types/react-dom": "^19.0.0",
-        "@vitejs/plugin-react": "^4.3.4",
-        "typescript": "^5.7.0",
-        "vite": "^6.0.7",
-      },
-    },
-    "apps/playground": {
-      "name": "@ieva/playground",
-      "version": "0.0.1",
-      "dependencies": {
-        "@ieva/compiler": "workspace:*",
-        "@ieva/fs": "workspace:*",
-        "@ieva/kit": "workspace:*",
-        "@ieva/model": "workspace:*",
-        "@ieva/react": "workspace:*",
-        "@ieva/store-idb": "workspace:*",
-        "esbuild-wasm": "^0.25.0",
-        "highlight.js": "^11.10.0",
-        "ieva": "workspace:*",
-        "react": "^19.0.0",
-        "react-dom": "^19.0.0",
-      },
-      "devDependencies": {
-        "@types/react": "^19.0.0",
-        "@types/react-dom": "^19.0.0",
-        "@vitejs/plugin-react": "^4.3.4",
-        "typescript": "^5.7.0",
-        "vite": "^6.0.7",
-      },
-    },
     "apps/web": {
       "name": "@ieva/web",
       "version": "0.0.1",
@@ -297,15 +255,11 @@
 
     "@ieva/compiler": ["@ieva/compiler@workspace:packages/compiler"],
 
-    "@ieva/docs": ["@ieva/docs@workspace:apps/docs"],
-
     "@ieva/fs": ["@ieva/fs@workspace:packages/fs"],
 
     "@ieva/kit": ["@ieva/kit@workspace:packages/kit"],
 
     "@ieva/model": ["@ieva/model@workspace:packages/model"],
-
-    "@ieva/playground": ["@ieva/playground@workspace:apps/playground"],
 
     "@ieva/react": ["@ieva/react@workspace:packages/react"],
 
