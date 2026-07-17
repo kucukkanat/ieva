@@ -1,0 +1,17 @@
+{
+  "name": "@ieva/compiler",
+  "version": "0.0.1",
+  "description": "In-browser compiler for ieva. Turns a discovered agent directory into a runnable LoadedAgent via esbuild-wasm.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./esbuild": "./src/loader-esbuild.ts"
+  },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "bun test" },
+  "dependencies": { "ieva": "workspace:*" },
+  "peerDependencies": { "esbuild-wasm": "^0.24.0" },
+  "peerDependenciesMeta": { "esbuild-wasm": { "optional": true } },
+  "devDependencies": { "@types/bun": "^1.3.14", "typescript": "^5.7.0" }
+}

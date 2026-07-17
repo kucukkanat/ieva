@@ -1,0 +1,31 @@
+{
+  "name": "ieva",
+  "version": "0.0.1",
+  "description": "Browser-native framework for durable AI agents. Filesystem-first, like eve — but it runs in a tab.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./tools": "./src/tools.ts",
+    "./tools/approval": "./src/approval.ts",
+    "./skills": "./src/skills.ts",
+    "./instructions": "./src/instructions.ts",
+    "./hooks": "./src/hooks.ts",
+    "./sandbox": "./src/sandbox.ts",
+    "./context": "./src/context.ts",
+    "./client": "./src/client.ts",
+    "./runtime": "./src/runtime/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "peerDependencies": {
+    "ai": "^5.0.0 || ^6.0.0 || ^7.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "typescript": "^5.7.0"
+  }
+}

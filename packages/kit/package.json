@@ -1,0 +1,15 @@
+{
+  "name": "@ieva/kit",
+  "version": "0.0.1",
+  "description": "One-call bootstrap for ieva: discover → compile → runnable agent client.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "bun test" },
+  "dependencies": {
+    "ieva": "workspace:*",
+    "@ieva/compiler": "workspace:*"
+  },
+  "devDependencies": { "@types/bun": "^1.3.14", "typescript": "^5.7.0" }
+}

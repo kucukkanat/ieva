@@ -1,0 +1,32 @@
+{
+  "name": "@ieva/fs",
+  "version": "0.0.1",
+  "description": "OPFS-backed virtual filesystem for ieva — implements just-bash's IFileSystem and ieva's ReadFs, plus directory ingest adapters.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./path-index": "./src/path-index.ts",
+    "./ingest": "./src/ingest.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "ieva": "workspace:*"
+  },
+  "peerDependencies": {
+    "fflate": "^0.8.2"
+  },
+  "peerDependenciesMeta": {
+    "fflate": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,27 @@
+# ieva
+
+> A browser-native framework for durable AI agents. Filesystem-first like eve.dev, but it runs entirely in a browser tab: OPFS filesystem, IndexedDB durable store, esbuild-wasm in-browser compiler, BYOK-cloud or WebGPU-local models. Identity comes from the path — a file at tools/get_weather.ts IS the tool get_weather; no name field is ever written.
+
+## Core ideas
+
+- An agent is an `agent/` directory: `instructions.md` (required), optional `agent.ts`, and `tools/`, `skills/`, `subagents/`, `hooks/`, `sandbox/` slots.
+- The `define*` API (`defineTool`, `defineSkill`, `defineAgent`, `defineHook`, `defineState`) are typed pass-throughs — identity is the file path.
+- Discovery never executes authored code; the path determines the slot. Compilation (esbuild-wasm) imports modules and validates their brand.
+- Durability: every turn is session → turn → step; step results are the atomic persistence boundary, checkpointed to IndexedDB. A tab reload is a crash and sessions resume. The snapshot never stores model/tool config — rebuilt each turn — which also makes hot reload safe mid-session.
+
+## Docs
+
+- [Introduction](/#/introduction): what ieva is and why a browser runtime.
+- [Getting started](/#/getting-started): bootstrapAgent() — folder to running client in one call.
+- [agent.ts](/#/agent-config): model and runtime config.
+- [Tools](/#/tools): one file = one tool; filename = tool name; approval gates; overriding built-ins.
+- [Skills](/#/skills): markdown playbooks loaded on demand via progressive disclosure.
+- [Subagents](/#/subagents): specialist child agents with isolated slots.
+- [Hooks](/#/hooks): observe-only lifecycle subscribers.
+- [State](/#/state): defineState — durable, session-scoped state, shared across the host/compiled-module boundary.
+- [Ingesting a directory](/#/ingest): picker (live), drag-drop, zip, URL; the sync path index over async OPFS.
+- [Sandbox](/#/sandbox): just-bash pure-JS shell over OPFS; coreutils in JS; no python/sqlite/git.
+- [Durability](/#/durability): checkpoints, the redeploy-safety invariant, interrupted-step re-runs.
+- [Models](/#/models): anthropic/<model> BYOK cloud (direct-browser) and webllm/<model> local WebGPU.
+- [Project layout](/#/project-layout): the conventional directory and the rules the compiler enforces.
+- [Packages](/#/packages): ieva, @ieva/fs, @ieva/compiler, @ieva/store-idb, @ieva/model, @ieva/kit, @ieva/react.
