@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./anthropic": "./src/anthropic.ts",
+    "./openai": "./src/openai.ts",
     "./transformers": "./src/transformers.ts",
     "./tool-prompt": "./src/tool-prompt.ts"
   },
